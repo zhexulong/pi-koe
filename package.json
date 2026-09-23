@@ -1,5 +1,5 @@
 {
-  "name": "pi-voice-gateway",
+  "name": "pi-koe",
   "version": "0.1.0",
   "description": "Standalone, localhost-only voice gateway for GameBuddy — PTT capture, ASR, streamed MiMo TTS, resident Windows playback. Installable as a pi extension.",
   "type": "module",

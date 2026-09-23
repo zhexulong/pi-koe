@@ -9,7 +9,7 @@ microphone audio, or own provider credentials.
 > **2026-09-23：split from `zhexulong/gamebuddy`.** This repository
 > (formerly `voice-gateway/` + `packages/voice-protocol/` inside the GameBuddy
 > monorepo) carries its full history via `git subtree split`. It is also a
-> **pi package**: `package.json` declares a `pi` manifest pointing at
+> **pi package** (`pi-koe`): `package.json` declares a `pi` manifest pointing at
 > `extensions/index.ts`, so it can be installed as a pi extension — `pi install
 > <this-repo>`, then `/voice status` / `/voice start` / `/voice stop` manage the
 > local gateway child from inside pi.
