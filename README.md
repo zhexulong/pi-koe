@@ -1,111 +1,55 @@
-# pi-voice-gateway
+# pi-koe
 
-Standalone, localhost-only, token-authenticated Voice Gateway for GameBuddy —
-PTT capture state, final ASR text, bounded TTS jobs, one mixer owner, cancellation
-epochs, and text-safe failure behaviour. It does **not** import Pi/Magic
-Context, contact the Stardew bridge, execute Game Actions, persist raw
-microphone audio, or own provider credentials.
+GameBuddy 的独立语音网关：本机环回、token 认证、只拥有音频捕获 / 转写 / 合成 / 播放。它不导入 Pi / Magic Context、不接触 Stardew bridge、不执行 Game Action、不持久化原始麦克风音频、不拥有 provider 凭据。
 
-> **2026-09-23：split from `zhexulong/gamebuddy`.** This repository
-> (formerly `voice-gateway/` + `packages/voice-protocol/` inside the GameBuddy
-> monorepo) carries its full history via `git subtree split`. It is also a
-> **pi package** (`pi-koe`): `package.json` declares a `pi` manifest pointing at
-> `extensions/index.ts`, so it can be installed as a pi extension — `pi install
-> <this-repo>`, then `/voice status` / `/voice start` / `/voice stop` manage the
-> local gateway child from inside pi.
->
-> GameBuddy consumes only the versioned `@gamebuddy/voice-protocol` package and
-> the released Voice artifact, never this repo's sources.
+同时是 **pi 扩展**（`/voice` 命令族）与 **GameBuddy 的 voice 依赖源**（submodule + 版本化协议包）。
 
-## Current implementation
+> **2026-09-23：从 `zhexulong/gamebuddy` 拆分。** 本仓库（原 monorepo 内的 `voice-gateway/` + `packages/voice-protocol/`）经 `git subtree split` 保留完整历史。GameBuddy 只消费版本化 `@gamebuddy/voice-protocol` 与发布产物，不依赖本仓库源码。
 
-- Protocol v1 local newline-delimited JSON control service, bound to
-  `127.0.0.1` only and requiring a 16–256-character opaque token.
-- 16 kHz mono signed PCM16 PTT contract; partial text is UI-only and final text
-  is the only event eligible for Host delivery.
-- Bounded speech queue/audio volume, cancellation epochs, and `STOP_ALL` that
-  aborts voice work without waiting on or touching a Game Action.
-- Provider-neutral fake ASR/TTS/mixer adapters for deterministic CI.
-- `MimoTtsProvider` for the locked `mimo-v2.5-tts` SSE/PCM16 contract. The
-  caller owns `MIMO_API_KEY`; it is never read from a repository file or
-  logged. A missing key/model/device preserves text interaction. Startup sends
-  one bounded non-player probe and requires its first PCM frame to complete a
-  real Windows output write before the Gateway reports speech ready.
-- `windows-waveout.ps1` plus `WindowsAudioMixer` implement the narrow Windows
-  output adapter. Set `GAMEBUDDY_WINDOWS_OUTPUT_DEVICE=default` to select the
-  current Windows default multimedia output at each open, or explicitly select
-  an enumerated `waveout:N` endpoint. Explicit selection never silently falls
-  back to another device. A failed open/write/completion revokes readiness for
-  the process; Host then refuses speech presentation.
-- `windows-wavein.ps1` plus `WindowsPttCapture` implement a PTT-only Windows
-  input adapter. Set `GAMEBUDDY_WINDOWS_INPUT_DEVICE=default` for the current
-  Windows default capture device, or an explicit `wavein:N` endpoint. The
-  driver must open/start and return bounded 16 kHz mono PCM at an input probe
-  before PTT is enabled. The Gateway pulls raw PCM locally only at PTT stop;
-  Host never sends or receives PCM. Capture remains disabled unless the
-  SenseVoice asset manifest has passed its independent hash audit.
-- `SenseVoiceCliAsrProvider` for the external CPU-only Fun-ASR native GGUF
-  runtime. Before it can run, the operator supplies a JSON asset manifest for
-  the native executable, audio encoder, llama.cpp decoder, and FSMN-VAD, with a
-  locked runtime revision and SHA-256 hashes for all three GGUF assets. Gateway
-  startup verifies paths and hashes; PCM is converted to a transient WAV and
-  removed on success, failure, or cancellation. Bounded PTT runs are decoded as
-  fixed sequential chunks; the audited VAD asset is retained for a separately
-  reviewed long-audio mode, and does not silently discard early PTT speech.
-  Model metadata tags are stripped and never interpreted as player emotion,
-  identity, or consent. User PTT validation must not reveal, hash, compare,
-  score, or persist a transcript outside the user's own local product UI.
+## 文档
 
-The Fun-ASR native runtime, SenseVoice encoder GGUF, decoder GGUF, FSMN-VAD
-asset, license/model card, and Windows fixture are intentionally **not**
-bundled or silently downloaded. Set `GAMEBUDDY_SENSEVOICE_ASSET_MANIFEST` only
-after separately auditing all of them. With
-no manifest, the Gateway stays in text-safe fake-ASR mode rather than claiming
-real local ASR. Set `MIMO_API_KEY` plus `GAMEBUDDY_MIMO_VOICE` only when the
-operator explicitly enables the cloud TTS provider.
+| 文档 | 内容 |
+| :--- | :--- |
+| [docs/architecture.md](docs/architecture.md) | 分层、进程模型、epoch 与取消、失败策略、有界性 |
+| [docs/protocol.md](docs/protocol.md) | v1 契约、v2 冻结契约、NDJSON framing、重放决议 |
+| [docs/windows-audio.md](docs/windows-audio.md) | PowerShell 解析、常驻流式渲染、PTT 采集、卡顿判据、ASR 已知问题 |
+| [docs/providers.md](docs/providers.md) | MiMo TTS、Groq Whisper、SenseVoice、音色与人格、凭据与授权 |
+| [docs/gates.md](docs/gates.md) | 五级证据模型、无人测试方法、门禁脚本、未闭合项、CI |
+| [docs/integration.md](docs/integration.md) | 双重契约、环境变量、发布策略、命名 |
 
-In the production Desktop path, the key alone is insufficient: the Desktop
-supervisor must inject the launch-only
-`GAMEBUDDY_VOICE_CLOUD_TTS_ADMISSION=desktop-consent-v1` contract after its
-product-owned consent/disclosure decision. A direct `pnpm start` or a child
-without that exact launch value remains text-only. This is a process-start
-seam, not a v2 wire message and not a claim that the current UI already
-provides the consent journey.
+## 快速开始
 
-## Run the protocol skeleton
+```bash
+pnpm install
+pnpm run build:protocol && pnpm run build
 
-```powershell
+# 作为 pi 扩展
+pi install <this-repo>
+/voice status   # /voice start / /voice stop
+
+# 直接启动（开发）
 $env:GAMEBUDDY_VOICE_TOKEN = '<16+ opaque local token>'
-# Current Windows default output. Or list and choose a stable endpoint:
-# powershell -ExecutionPolicy Bypass -File windows-waveout.ps1 -Mode list
 $env:GAMEBUDDY_WINDOWS_OUTPUT_DEVICE = 'default'
-$env:GAMEBUDDY_MIMO_VOICE = 'Chloe'
-# Requires GAMEBUDDY_SENSEVOICE_ASSET_MANIFEST to have passed hash audit:
-$env:GAMEBUDDY_WINDOWS_INPUT_DEVICE = 'default'
 pnpm start
 ```
 
-Use `pnpm test` for the fake-provider and local-server contract suite.
-local-server contract suite. The startup log says `listening`, not `ready`:
-protocol `ready` is false without a provider probe and real mixer. Gateway
-close performs `STOP_ALL`, destroys authenticated sockets, and then closes the
-listener so a persistent Host socket cannot block shutdown. `waveOut` is an
-output-only adapter: microphone capture remains unavailable until separately
-configured audited SenseVoice assets complete their own PTT open/read/ASR gate.
+启动日志区分 **`listening`（协议就绪）** 与 **`voice ready`（provider + 设备就绪）**。后者需要真实 key、设备，以及产品层的 cloud speech admission（见 [docs/providers.md](docs/providers.md) §6）——环境凭据不是玩家同意，缺少 admission 时保持纯文字。
 
-## Demo Gate Preflight
+## 开发
 
-Before the real Phase 1-4 Farmhand, provider, and device runbooks, run:
-
-```powershell
-$env:GAMEBUDDY_STARDEW_GAME_PATH = 'D:\Steam\steamapps\common\Stardew Valley'
-$env:GAMEBUDDY_SECOND_STARDEW_GAME_PATH = 'D:\path\to\a\separately-licensed\second\Stardew\client'
-$env:MIMO_API_KEY = 'rotated_key_in_process_environment_only'
-$env:GAMEBUDDY_SENSEVOICE_ASSET_MANIFEST = 'D:\audited-assets\sensevoice-manifest.json'
-pnpm verify-demo-prerequisites
+```bash
+pnpm run typecheck      # tsc --noEmit
+pnpm run test           # 构建 + 134 项测试
+pnpm run test:extension # pi 扩展 smoke（fake pi API）
+pnpm run build:release-artifact   # 生产 bundle（entry/protocol/ps1）
 ```
 
-The command never reads or prints the MiMo key. It fails closed when the
-independent legal Farmhand client, rotated credential, or audited local ASR
-assets are missing; it does not run a provider request, start Stardew, or
-modify a save.
+联合门禁需要 GameBuddy checkout：`GAMEBUDDY_HOST_ROOT=<path> node scripts/run-host-wire-bundle-rehearsal.mjs`。
+
+项目不做原生编译：设备访问全部经 PowerShell（WinMM）子进程完成。
+
+## 范围
+
+- **当前**：受管 Push-To-Talk + 云端或本地 TTS 朗读；v1 协议为生产唯一有效协议，v2 已冻结且运行时落地。
+- **不做**：in-game overlay、多角色音色分发、情绪标签提取管道、声卡混音 / AEC3。
+- **未闭合**：L5 玩家发布门禁（需真人说话）；流式 ASR 上行。
