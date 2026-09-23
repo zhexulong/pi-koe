@@ -1,10 +1,21 @@
-# GameBuddy Voice Gateway
+# pi-voice-gateway
 
-A standalone, localhost-only, token-authenticated Voice Gateway. It owns PTT
-capture state, final ASR text, bounded TTS jobs, one mixer owner, cancellation
+Standalone, localhost-only, token-authenticated Voice Gateway for GameBuddy —
+PTT capture state, final ASR text, bounded TTS jobs, one mixer owner, cancellation
 epochs, and text-safe failure behaviour. It does **not** import Pi/Magic
 Context, contact the Stardew bridge, execute Game Actions, persist raw
 microphone audio, or own provider credentials.
+
+> **2026-09-23：split from `zhexulong/gamebuddy`.** This repository
+> (formerly `voice-gateway/` + `packages/voice-protocol/` inside the GameBuddy
+> monorepo) carries its full history via `git subtree split`. It is also a
+> **pi package**: `package.json` declares a `pi` manifest pointing at
+> `extensions/index.ts`, so it can be installed as a pi extension — `pi install
+> <this-repo>`, then `/voice status` / `/voice start` / `/voice stop` manage the
+> local gateway child from inside pi.
+>
+> GameBuddy consumes only the versioned `@gamebuddy/voice-protocol` package and
+> the released Voice artifact, never this repo's sources.
 
 ## Current implementation
 
@@ -66,15 +77,15 @@ provides the consent journey.
 ```powershell
 $env:GAMEBUDDY_VOICE_TOKEN = '<16+ opaque local token>'
 # Current Windows default output. Or list and choose a stable endpoint:
-# powershell -ExecutionPolicy Bypass -File voice-gateway/windows-waveout.ps1 -Mode list
+# powershell -ExecutionPolicy Bypass -File windows-waveout.ps1 -Mode list
 $env:GAMEBUDDY_WINDOWS_OUTPUT_DEVICE = 'default'
 $env:GAMEBUDDY_MIMO_VOICE = 'Chloe'
 # Requires GAMEBUDDY_SENSEVOICE_ASSET_MANIFEST to have passed hash audit:
 $env:GAMEBUDDY_WINDOWS_INPUT_DEVICE = 'default'
-pnpm --filter @gamebuddy/voice-gateway start
+pnpm start
 ```
 
-Use `pnpm --filter @gamebuddy/voice-gateway test` for the fake-provider and
+Use `pnpm test` for the fake-provider and local-server contract suite.
 local-server contract suite. The startup log says `listening`, not `ready`:
 protocol `ready` is false without a provider probe and real mixer. Gateway
 close performs `STOP_ALL`, destroys authenticated sockets, and then closes the
