@@ -16,9 +16,10 @@ import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 import { readFile, writeFile } from "node:fs/promises";
+import { resolveGamebuddyHostRoot, resolveHostDist } from "./lib/gamebuddy-host-root.mjs";
 
 const voiceGatewayRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const hostRoot = resolve(voiceGatewayRoot, "..", "host");
+const { hostRoot } = resolveGamebuddyHostRoot();
 const bundleEntry = resolve(voiceGatewayRoot, ".dist", "entry", "voice-gateway-entry.mjs");
 const artifactPath = resolve(voiceGatewayRoot, "scripts", "pipeline-host-wire-bundle-rehearsal.json");
 
@@ -75,7 +76,7 @@ try {
 
   // Production Host adapter path: same module + connect seam the desktop
   // bootstrap wire uses (voice-bootstrap.ts → connectHealthyVoiceGateway).
-  const { connectHealthyVoiceGateway } = await import(pathToFileURL(resolve(hostRoot, "dist-test", "voice-bootstrap.js")).href);
+  const { connectHealthyVoiceGateway } = await import(pathToFileURL(resolve(hostRoot, resolveHostDist(hostRoot, "voice-bootstrap.js"), "voice-bootstrap.js")).href);
   // Production wire calls health *without* a voiceProfile (the gateway
   // resolves its own configured profile); passing the persona id here would
   // mismatch the configured companion.default profile and read unavailable.

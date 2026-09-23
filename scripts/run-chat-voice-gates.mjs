@@ -33,6 +33,7 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { writeFile } from "node:fs/promises";
+import { resolveGamebuddyHostRoot, resolveHostDist } from "./lib/gamebuddy-host-root.mjs";
 
 const rawScenario = process.argv[2] ?? "revoked";
 const scenario = rawScenario.startsWith("--scenario=") ? rawScenario.slice("--scenario=".length) : rawScenario;
@@ -43,7 +44,7 @@ if (!allowed.has(scenario)) {
 }
 
 const voiceGatewayRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const hostRoot = resolve(voiceGatewayRoot, "..", "host");
+const { hostRoot } = resolveGamebuddyHostRoot();
 const bundleEntry = resolve(voiceGatewayRoot, ".dist", "entry", "voice-gateway-entry.mjs");
 const artifactPath = resolve(voiceGatewayRoot, "scripts", `pipeline-chat-voice-${scenario}.json`);
 
@@ -175,8 +176,8 @@ try {
     handle = spawnGateway(port, token);
     const readyLine = await waitForReady(handle, "crash");
     record.voice.readyLine = readyLine;
-    const { connectHealthyVoiceGateway } = await import(pathToFileURL(resolve(hostRoot, "dist-test", "voice-bootstrap.js")).href);
-    const voice = await connectHealthyVoiceGateway({ host: "127.0.0.1", port, token });
+const { connectHealthyVoiceGateway } = await import(pathToFileURL(resolve(hostRoot, resolveHostDist(hostRoot, "voice-bootstrap.js"), "voice-bootstrap.js")).href);
+const voice = await connectHealthyVoiceGateway({ host: "127.0.0.1", port, token });
     await voice.health();
     const reader = voice.createVoiceSurfaceReader();
     record.voice.surfaceBefore = reader()?.state;
@@ -221,8 +222,8 @@ try {
     handle = spawnGateway(port, token);
     const readyLine = await waitForReady(handle, "bargein");
     record.voice.readyLine = readyLine;
-    const { connectHealthyVoiceGateway } = await import(pathToFileURL(resolve(hostRoot, "dist-test", "voice-bootstrap.js")).href);
-    const voice = await connectHealthyVoiceGateway({ host: "127.0.0.1", port, token });
+const { connectHealthyVoiceGateway } = await import(pathToFileURL(resolve(hostRoot, resolveHostDist(hostRoot, "voice-bootstrap.js"), "voice-bootstrap.js")).href);
+const voice = await connectHealthyVoiceGateway({ host: "127.0.0.1", port, token });
     await voice.health();
     const reader = voice.createVoiceSurfaceReader();
     record.voice.surfaceBefore = reader()?.state;

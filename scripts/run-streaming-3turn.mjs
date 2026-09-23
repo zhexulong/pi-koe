@@ -13,10 +13,10 @@ import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 import { createConnection } from "node:net";
+import { resolveGamebuddyHostRoot } from "./lib/gamebuddy-host-root.mjs";
 
-const hostRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "host");
 const voiceGatewayRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
-const presetRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..", "..", "assets", "tavern", "presets", "deepseek-chan");
+const { hostRoot, presetRoot } = resolveGamebuddyHostRoot();
 
 function resolveHostClientDist() {
   for (const candidate of ["dist-test-voice4", "dist-test", "dist"]) {

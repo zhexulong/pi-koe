@@ -21,9 +21,10 @@ import { fileURLToPath } from "node:url";
 import { resolve, dirname } from "node:path";
 import { pathToFileURL } from "node:url";
 import { readFile, writeFile } from "node:fs/promises";
+import { resolveGamebuddyHostRoot, resolveHostDist } from "./lib/gamebuddy-host-root.mjs";
 
 const voiceGatewayRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const hostRoot = resolve(voiceGatewayRoot, "..", "host");
+const { hostRoot } = resolveGamebuddyHostRoot();
 const bundleEntry = resolve(voiceGatewayRoot, ".dist", "entry", "voice-gateway-entry.mjs");
 const artifactPath = resolve(voiceGatewayRoot, "scripts", "pipeline-chat-voice-e2e.json");
 
@@ -130,7 +131,8 @@ try {
   record.voice.readyLine = readyLine;
 
   // --- 3. Connect through the production Host adapter. ---
-  const { connectHealthyVoiceGateway } = await import(pathToFileURL(resolve(hostRoot, "dist-test", "voice-bootstrap.js")).href);
+  const hostDist = resolveHostDist(hostRoot, "voice-bootstrap.js");
+  const { connectHealthyVoiceGateway } = await import(pathToFileURL(resolve(hostRoot, hostDist, "voice-bootstrap.js")).href);
   const voice = await connectHealthyVoiceGateway({ host: "127.0.0.1", port, token });
   if (voice === undefined) throw new Error("host_wire_connection_failed");
   await voice.health();

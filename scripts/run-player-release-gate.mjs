@@ -26,13 +26,12 @@ import { fileURLToPath } from "node:url";
 import { resolve } from "node:path";
 import { pathToFileURL } from "node:url";
 import { writeFile, readFile } from "node:fs/promises";
+import { resolveGamebuddyHostRoot, resolveHostDist } from "./lib/gamebuddy-host-root.mjs";
 
 const voiceGatewayRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
-const hostRoot = resolve(voiceGatewayRoot, "..", "host");
-const projectRoot = resolve(voiceGatewayRoot, "..");
+const { hostRoot, presetRoot } = resolveGamebuddyHostRoot();
 const bundleEntry = resolve(voiceGatewayRoot, ".dist", "entry", "voice-gateway-entry.mjs");
 const artifactPath = resolve(voiceGatewayRoot, "scripts", "pipeline-player-release.json");
-const presetRoot = resolve(projectRoot, "assets", "tavern", "presets", "deepseek-chan");
 
 const API_BASE = process.env.CPA_OAI_BASE_URL || "http://127.0.0.1:8317/v1";
 const API_KEY = process.env.CPA_OAI_API_KEY || "cpa";
@@ -211,7 +210,7 @@ try {
   if (!readyLine.includes("voice ready")) throw new Error(`gateway_not_voice_ready: ${readyLine}`);
   record.voiceReadyLine = readyLine;
 
-  const { connectHealthyVoiceGateway } = await import(pathToFileURL(resolve(hostRoot, "dist-test", "voice-bootstrap.js")).href);
+  const { connectHealthyVoiceGateway } = await import(pathToFileURL(resolve(hostRoot, resolveHostDist(hostRoot, "voice-bootstrap.js"), "voice-bootstrap.js")).href);
   const voice = await connectHealthyVoiceGateway({ host: "127.0.0.1", port, token });
   if (voice === undefined) throw new Error("host_wire_connection_failed");
   await voice.health();
