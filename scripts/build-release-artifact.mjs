@@ -28,9 +28,10 @@ import { build } from "esbuild";
 
 const scriptPath = fileURLToPath(import.meta.url);
 const voiceGatewayRoot = resolve(dirname(scriptPath), "..");
-const repositoryRoot = resolve(voiceGatewayRoot, "..");
 const distRoot = resolve(voiceGatewayRoot, "dist");
-const protocolDistRoot = resolve(repositoryRoot, "packages", "voice-protocol", "dist");
+// In the standalone repo the protocol package lives under ``packages/`` at the
+// repository root (which is itself ``voiceGatewayRoot``).
+const protocolDistRoot = resolve(voiceGatewayRoot, "packages", "voice-protocol", "dist");
 const outputRoot = resolve(voiceGatewayRoot, ".dist");
 
 /** `node:` builtins stay external; platform=node keeps bare builtins external

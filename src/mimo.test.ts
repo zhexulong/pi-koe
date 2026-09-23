@@ -136,7 +136,7 @@ test("MiMo adapter revalidates opaque admission immediately before provider acce
 });
 
 test("MiMo adapter replays the checked-in redacted live contract shape without secrets or audio", async () => {
-  const fixtureUrl = new URL("../../fixtures/voice/mimo-v2.5-tts-sse-redacted.json", import.meta.url);
+  const fixtureUrl = new URL("../fixtures/voice/mimo-v2.5-tts-sse-redacted.json", import.meta.url);
   const fixture = JSON.parse(await readFile(fileURLToPath(fixtureUrl), "utf8")) as {
     provider: string;
     endpoint: string;

@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.dist/
+.env*
+*.wav
+pipeline-*.json
+*.log
+.pnpm-store/
