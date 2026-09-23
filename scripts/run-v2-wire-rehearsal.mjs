@@ -34,7 +34,15 @@ const { createStreamingWindowsAudioMixer } = await gatewayDist("streaming-window
 const { MimoTtsProvider } = await gatewayDist("mimo.js");
 const { startVoiceGateway } = await gatewayDist("server.js");
 
-process.loadEnvFile?.(resolve(voiceGatewayRoot, "..", ".env.local"));
+// Local operator env (MIMO_API_KEY etc.) may live beside the repo checkout.
+for (const envPath of [".env.local", resolve(voiceGatewayRoot, "..", "ai-game-companion", ".env.local")]) {
+  try {
+    process.loadEnvFile?.(envPath);
+    break;
+  } catch {
+    // optional
+  }
+}
 
 const mixer = await createStreamingWindowsAudioMixer(outputDevice);
 if (mixer.ready !== true) {
