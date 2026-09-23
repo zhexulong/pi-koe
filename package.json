@@ -16,7 +16,7 @@
     "build:release-artifact": "node scripts/build-release-artifact.mjs",
     "test": "pnpm run build:protocol && pnpm run build && node --test dist/**/*.test.js",
     "test:all": "pnpm run test",
-    "test:protocol": "pnpm run build:protocol && node --test packages/voice-protocol/dist/**/*.test.js",
+    "test:protocol": "pnpm run build:protocol && pnpm --dir packages/voice-protocol test",
     "typecheck": "tsc --project tsconfig.json --noEmit",
     "typecheck:all": "pnpm run build:protocol && pnpm run typecheck",
     "typecheck:protocol": "tsc --project packages/voice-protocol/tsconfig.json --noEmit",
