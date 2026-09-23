@@ -24,6 +24,7 @@ export type VoiceGatewayCapabilities = Readonly<{ providerId: string; modelRevis
 export type VoiceGatewayRequest =
   | Readonly<{ type: "hello"; requestId: string; token: string; protocolVersion: number }>
   | Readonly<{ type: "health"; requestId: string; voiceProfile?: string }>
+  | Readonly<{ type: "list_output_devices"; requestId: string }>
   | Readonly<{ type: "ptt_start"; requestId: string; sessionId: string; inputId?: string; locale?: string }>
   | Readonly<{ type: "ptt_frame"; requestId: string; pcm16Base64: string; format?: PcmFormat }>
   | Readonly<{ type: "ptt_stop"; requestId: string; reasonCode?: string }>
@@ -35,9 +36,19 @@ export type VoiceGatewayRequest =
 export type VoiceGatewayResponse =
   | Readonly<{ type: "hello_ack"; requestId: string; protocolVersion: number }>
   | Readonly<{ type: "health"; requestId: string; status: "ready" | "unavailable"; protocolVersion: number; capabilities: VoiceGatewayCapabilities }>
+  | Readonly<{ type: "output_devices"; requestId: string; devices: readonly VoiceOutputDeviceInfo[] }>
   | Readonly<{ type: "accepted"; requestId: string; value?: string | boolean }>
   | Readonly<{ type: "events"; requestId: string; events: readonly VoiceGatewayEvent[]; next: number }>
   | Readonly<{ type: "error"; requestId: string | null; reasonCode: string }>;
+
+/**
+ * One enumerable Windows output endpoint. `id` is the frozen `waveout:N`
+ * selection the gateway accepts verbatim; `name` is a bounded display label
+ * from the driver. Device names are only returned to an authenticated caller
+ * of the explicit read-only enumeration request — public gateway state never
+ * leaks them.
+ */
+export type VoiceOutputDeviceInfo = Readonly<{ id: string; name: string }>;
 
 export function isOpaqueId(value: unknown): value is string { return typeof value === "string" && /^[A-Za-z0-9_.-]{1,128}$/.test(value); }
 export function isSourceEventId(value: unknown): value is string { return typeof value === "string" && /^[A-Za-z0-9_-]{1,128}$/.test(value); }
@@ -60,11 +71,24 @@ export function isVoiceGatewayCapabilities(value: unknown): value is VoiceGatewa
     && typeof value.ready === "boolean" && isNonnegativeSafeInteger(value.epoch);
 }
 
+export function isVoiceOutputDeviceInfo(value: unknown): value is VoiceOutputDeviceInfo {
+  return (
+    isRecord(value) &&
+    hasExactKeys(value, ["id", "name"]) &&
+    typeof value.id === "string" &&
+    /^waveout:[0-9]{1,4}$/.test(value.id) &&
+    typeof value.name === "string" &&
+    value.name.length >= 1 &&
+    value.name.length <= 128
+  );
+}
+
 export function isVoiceGatewayRequest(value: unknown): value is VoiceGatewayRequest {
   if (!isRecord(value) || !isOpaqueId(value.requestId) || typeof value.type !== "string") return false;
   switch (value.type) {
     case "hello": return hasExactKeys(value, ["type", "requestId", "token", "protocolVersion"]) && isVoiceGatewayToken(value.token) && value.protocolVersion === VOICE_PROTOCOL_VERSION;
     case "health": return hasExactKeys(value, ["type", "requestId"], ["voiceProfile"]) && (value.voiceProfile === undefined || isOpaqueId(value.voiceProfile));
+    case "list_output_devices": return hasExactKeys(value, ["type", "requestId"]);
     case "ptt_start": return hasExactKeys(value, ["type", "requestId", "sessionId"], ["inputId", "locale"]) && isOpaqueId(value.sessionId) && (value.inputId === undefined || isOpaqueId(value.inputId)) && (value.locale === undefined || isLocale(value.locale));
     case "ptt_frame": return hasExactKeys(value, ["type", "requestId", "pcm16Base64"], ["format"]) && isBase64(value.pcm16Base64) && value.pcm16Base64.length > 0 && (value.format === undefined || isRequiredPcmFormat(value.format));
     case "ptt_stop": case "capture_cancel": case "stop_all": return hasExactKeys(value, ["type", "requestId"], ["reasonCode"]) && (value.reasonCode === undefined || isReasonCode(value.reasonCode));
@@ -82,6 +106,7 @@ export function isVoiceGatewayResponse(value: unknown): value is VoiceGatewayRes
   switch (value.type) {
     case "hello_ack": return hasExactKeys(value, ["type", "requestId", "protocolVersion"]) && isOpaqueId(value.requestId) && value.protocolVersion === VOICE_PROTOCOL_VERSION;
     case "health": return hasExactKeys(value, ["type", "requestId", "status", "protocolVersion", "capabilities"]) && isOpaqueId(value.requestId) && (value.status === "ready" || value.status === "unavailable") && value.protocolVersion === VOICE_PROTOCOL_VERSION && isVoiceGatewayCapabilities(value.capabilities);
+    case "output_devices": return hasExactKeys(value, ["type", "requestId", "devices"]) && isOpaqueId(value.requestId) && Array.isArray(value.devices) && value.devices.every(isVoiceOutputDeviceInfo);
     case "accepted": return hasExactKeys(value, ["type", "requestId"], ["value"]) && isOpaqueId(value.requestId) && (value.value === undefined || typeof value.value === "boolean" || typeof value.value === "string");
     case "events": return hasExactKeys(value, ["type", "requestId", "events", "next"]) && isOpaqueId(value.requestId) && Array.isArray(value.events) && value.events.every(isVoiceGatewayEvent) && isNonnegativeSafeInteger(value.next);
     case "error": return hasExactKeys(value, ["type", "requestId", "reasonCode"]) && (value.requestId === null || isOpaqueId(value.requestId)) && isReasonCode(value.reasonCode);

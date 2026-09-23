@@ -38,6 +38,13 @@ export type VoiceGatewayServerOptions = Readonly<{
   mixer?: Mixer;
   /** Test-only local capture injection seam; production capture never accepts Host PCM. */
   capture?: PttCaptureDevice;
+  /**
+   * Optional read-only Windows output endpoint enumerator. When present, an
+   * authenticated `list_output_devices` request resolves through it; absence
+   * (or a non-Windows platform) answers `output_devices` with an empty list.
+   * Device names never enter public gateway state.
+   */
+  listOutputDevices?: () => Promise<readonly { id: string; name: string }[]>;
 }>;
 class VoiceGatewayCleanupError extends Error {
   public readonly unresolved: readonly string[];
@@ -135,7 +142,7 @@ export async function startVoiceGateway(options: VoiceGatewayServerOptions): Pro
     // Always consume that socket error locally; one bad peer must not tear down
     // the gateway process or leave an unhandled EventEmitter exception.
     socket.on("error", () => socket.destroy());
-    handleSocket(socket, options.token, core, captureCoordinator, () => quarantined, quarantine);
+      handleSocket(socket, options.token, core, captureCoordinator, () => quarantined, quarantine, options.listOutputDevices);
   });
   await new Promise<void>((resolvePromise, reject) =>
     server.once("error", reject).listen(options.port, host, resolvePromise),
@@ -176,6 +183,7 @@ function handleSocket(
   captureCoordinator: CaptureCoordinator,
   isQuarantined: () => boolean,
   quarantine: () => void,
+  listOutputDevices?: () => Promise<readonly { id: string; name: string }[]>,
 ): void {
   let authenticated = false;
   // A v2 peer authenticates with the v1 hello on the same socket, then sends
@@ -292,6 +300,7 @@ function handleSocket(
           },
           isQuarantined,
           quarantine,
+          listOutputDevices,
         );
         requestReplay.response = outcome.response;
         requestReplay.replayable = outcome.replayable;
@@ -375,6 +384,7 @@ async function dispatch(
   markReplayUnsafe: () => void,
   isQuarantined: () => boolean,
   quarantine: () => void,
+  listOutputDevices?: () => Promise<readonly { id: string; name: string }[]>,
 ): Promise<DispatchOutcome> {
   if (request.type === "hello") {
     if (request.protocolVersion !== VOICE_PROTOCOL_VERSION || request.token !== token) {
@@ -400,6 +410,25 @@ async function dispatch(
           protocolVersion: VOICE_PROTOCOL_VERSION,
           capabilities: effective,
         }, true);
+      }
+      case "list_output_devices": {
+        // Read-only enumeration for authenticated callers only (the caller
+        // already passed `isAuthenticated` above). Device names never enter
+        // public gateway state; they are returned only to this explicit
+        // request. Absent enumerator answers an empty list rather than an
+        // error so non-Windows or headless hosts stay protocol-stable.
+        const devices = listOutputDevices === undefined ? [] : await listOutputDevices();
+        const bounded = devices
+          .filter(
+            (device): device is { id: string; name: string } =>
+              typeof device.id === "string" &&
+              /^waveout:[0-9]{1,4}$/.test(device.id) &&
+              typeof device.name === "string" &&
+              device.name.length >= 1 &&
+              device.name.length <= 128,
+          )
+          .slice(0, 32);
+        return sendOutcome(socket, { type: "output_devices", requestId: request.requestId, devices: bounded }, true);
       }
       case "ptt_start": {
         if (!captureCoordinator.hasDevice) throw new Error("capture_device_unavailable");

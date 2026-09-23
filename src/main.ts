@@ -5,6 +5,7 @@ import { MimoTtsProvider, MIMO_TTS_PERSONAS, type MimoTtsAdmission, type MimoTts
 import { auditSenseVoiceAssets, type SenseVoiceAssetManifest, SenseVoiceCliAsrProvider } from "./sensevoice.js";
 import { startVoiceGateway } from "./server.js";
 import { createStreamingWindowsAudioMixer, type StreamingWindowsAudioMixer } from "./streaming-windows-audio.js";
+import { listWindowsOutputDevices } from "./windows-audio.js";
 import { type WindowsInputSelection, WindowsPttCapture } from "./windows-capture.js";
 
 // Optional: load local operator environment (e.g. GROQ_API_KEY, MIMO_API_KEY) from .env.local
@@ -43,7 +44,21 @@ if (!Number.isInteger(port) || port < 1 || port > 65_535 || !/^[A-Za-z0-9_-]{16,
   const mixer = await configuredMixer();
   const capture = await configuredCapture(asr);
   const tts = candidateTts === undefined ? undefined : await verifyTtsAgainstMixer(candidateTts, mixer);
-  const gateway = await startVoiceGateway({ port, token, asr, tts, mixer, capture });
+  const gateway = await startVoiceGateway({
+    port,
+    token,
+    asr,
+    tts,
+    mixer,
+    capture,
+    // Read-only endpoint enumeration for the Host settings surface. The
+    // enumerator is Windows-only and fails closed to an empty list on other
+    // platforms; device names never enter public gateway state.
+    listOutputDevices:
+      process.platform === "win32"
+        ? async () => (await listWindowsOutputDevices()).map((device) => ({ id: device.id, name: device.name }))
+        : undefined,
+  });
   const status = gateway.capabilities.ready ? "voice ready" : "voice unavailable";
   console.log(`GameBuddy Voice Gateway listening on 127.0.0.1:${gateway.port} (protocol v1; ${status}).`);
   const shutdown = async () => {

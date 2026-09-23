@@ -53,3 +53,28 @@ test("strict wire validators reject unknown keys and validate every variant", ()
   assert.notEqual(parseVoiceGatewayResponse('{"type":"events","requestId":"request_01","events":[{"type":"partial_transcript","sessionId":"session_01","inputId":"input_01","text":"ok"}],"next":1}'), null);
   assert.equal(parseVoiceGatewayResponse('{"type":"events","requestId":"request_01","events":[{"type":"partial_transcript","sessionId":"session_01","inputId":"input_01","text":"ok","extra":true}],"next":1}'), null);
 });
+
+test("output device enumeration request/response round-trips with strict endpoint shape", () => {
+  // Request: only { type, requestId }.
+  assert.notEqual(parseVoiceGatewayRequest('{"type":"list_output_devices","requestId":"devices_01"}'), null);
+  assert.equal(parseVoiceGatewayRequest('{"type":"list_output_devices","requestId":"devices_01","extra":true}'), null);
+  // Response: devices must be { id: waveout:N, name: bounded }.
+  assert.notEqual(
+    parseVoiceGatewayResponse('{"type":"output_devices","requestId":"devices_01","devices":[{"id":"waveout:0","name":"Speakers"}]}'),
+    null,
+  );
+  assert.notEqual(parseVoiceGatewayResponse('{"type":"output_devices","requestId":"devices_01","devices":[]}'), null);
+  // Reject non-endpoint ids, missing names and out-of-bound names.
+  assert.equal(
+    parseVoiceGatewayResponse('{"type":"output_devices","requestId":"devices_01","devices":[{"id":"C:\\speakers","name":"X"}]}'),
+    null,
+  );
+  assert.equal(
+    parseVoiceGatewayResponse('{"type":"output_devices","requestId":"devices_01","devices":[{"id":"waveout:0"}]}'),
+    null,
+  );
+  assert.equal(
+    parseVoiceGatewayResponse(`{"type":"output_devices","requestId":"devices_01","devices":[{"id":"waveout:0","name":"${'x'.repeat(129)}"}]}`),
+    null,
+  );
+});
