@@ -109,9 +109,13 @@ export default function registerVoiceGatewayExtension(pi: ExtensionAPI) {
 
       // Default: status.
       if (gatewayChild !== undefined && gatewayChild.exitCode === null) {
-        return `voice_gateway_running pid=${gatewayChild.pid} port=${port} admission=${process.env.GAMEBUDDY_VOICE_CLOUD_TTS_ADMISSION !== undefined}`;
+        const msg = `voice_gateway_running pid=${gatewayChild.pid} port=${port} admission=${process.env.GAMEBUDDY_VOICE_CLOUD_TTS_ADMISSION !== undefined}`;
+        ctx.ui.notify(msg, "info");
+        return msg;
       }
-      return `voice_gateway_not_running port=${port} built=${gatewayEntry()} source_path=${gatewayEntry()} admission_env=${process.env.GAMEBUDDY_VOICE_CLOUD_TTS_ADMISSION !== undefined}`;
+      const msg = `voice_gateway_not_running port=${port} built=${gatewayEntry()} admission_env=${process.env.GAMEBUDDY_VOICE_CLOUD_TTS_ADMISSION !== undefined}`;
+      ctx.ui.notify(msg, "info");
+      return msg;
     },
   });
 

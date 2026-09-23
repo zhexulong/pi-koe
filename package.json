@@ -4,6 +4,8 @@
   "description": "Standalone, localhost-only voice gateway for GameBuddy — PTT capture, ASR, streamed MiMo TTS, resident Windows playback. Installable as a pi extension.",
   "type": "module",
   "private": true,
+  "main": "./extensions/index.ts",
+  "exports": { ".": "./extensions/index.ts" },
   "engines": {
     "node": ">=24.13.0 <25"
   },
